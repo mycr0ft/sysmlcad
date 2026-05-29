@@ -57,6 +57,7 @@ from sysmlcad.expression import (
 )
 
 from sysmlcad import openscad  # noqa: F401 -- import to register backend
+from sysmlcad import build123d  # noqa: F401 -- import to register backend
 
 
 def export(shape: Shape, backend: str = "openscad", **options) -> str:

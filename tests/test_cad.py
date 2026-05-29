@@ -606,3 +606,120 @@ class TestPhase2_ComplexShape:
         assert "$fn = 32;" in code
         assert "difference()" in code
         assert "translate" in code
+
+
+# ===================================================================
+# Build123d Backend tests
+# ===================================================================
+
+class TestBuild123dBackend:
+    def test_backend_registered(self):
+        names = list_backends()
+        assert "build123d" in names
+
+    def test_mime_type(self):
+        backend = get_backend("build123d")()
+        assert backend.mime_type() == "text/x-python"
+
+    def test_file_extension(self):
+        backend = get_backend("build123d")()
+        assert backend.file_extension() == ".py"
+
+    def test_is_available(self):
+        backend = get_backend("build123d")()
+        # build123d not installed in test env, should be False
+        # (we only test code generation, not execution)
+        from sysmlcad.build123d import Build123dBackend
+        # just check the method exists and returns bool
+        result = backend.is_available()
+        assert isinstance(result, bool)
+
+    def test_export_box(self):
+        box = Box(100, 50, 30)
+        code = export(box, backend="build123d")
+        assert "from build123d import *" in code
+        assert "Box(100, 50, 30)" in code
+        assert "result = " in code
+
+    def test_export_cylinder(self):
+        cyl = Cylinder(40, 5)
+        code = export(cyl, backend="build123d")
+        assert "Cylinder(radius=5, height=40)" in code
+
+    def test_export_sphere(self):
+        sphere = Sphere(25)
+        code = export(sphere, backend="build123d")
+        assert "Sphere(radius=25)" in code
+
+    def test_export_cone(self):
+        cone = Cone(20, 10, 3)
+        code = export(cone, backend="build123d")
+        assert "Cone(bottom_radius=10, top_radius=3, height=20)" in code
+
+    def test_export_torus(self):
+        torus = Torus(50, 10)
+        code = export(torus, backend="build123d")
+        assert "Torus(major_radius=50, minor_radius=10)" in code
+
+    def test_export_union(self):
+        a = Box(10, 10, 10)
+        b = Cylinder(10, 5)
+        union = a + b
+        code = export(union, backend="build123d")
+        assert " + " in code
+
+    def test_export_difference(self):
+        box = Box(100, 50, 30)
+        hole = Cylinder(30, 5)
+        part = box - hole
+        code = export(part, backend="build123d")
+        assert " - " in code
+
+    def test_export_translate(self):
+        box = Box(10, 10, 10)
+        t = Translate(box, x=5, y=10, z=15)
+        code = export(t, backend="build123d")
+        assert "Pos(5, 10, 15)" in code
+
+    def test_export_with_parameter(self):
+        length = Parameter("L", 100)
+        box = Box(length, 50, 30)
+        code = export(box, backend="build123d")
+        assert "100" in code
+
+    def test_export_module_definition(self):
+        shape = Box(100, 50, 30, name="base")
+        mod = Module(shape, module_name="base_plate")
+        code = export(mod, backend="build123d")
+        assert "def base_plate():" in code
+        assert "Box(100, 50, 30)" in code
+        assert "return " in code
+
+    def test_export_module_with_params(self):
+        shape = Box(Parameter("L", 100), Parameter("W", 50), Parameter("H", 30))
+        mod = Module(shape, module_name="box_module",
+                     export_params=["L", "W", "H"])
+        code = export(mod, backend="build123d")
+        assert "def box_module(L, W, H):" in code
+        assert "Box(L, W, H)" in code
+
+    def test_export_assembly(self):
+        assembly = Assembly(name="bracket")
+        bracket = Box(100, 50, 30)
+        assembly.place(bracket)
+        cap = Sphere(50)
+        assembly.place(cap, z=30)
+        code = export(assembly, backend="build123d")
+        assert " + " in code
+
+    def test_export_with_units_mm(self):
+        ureg = pint.UnitRegistry()
+        box = Box(100 * ureg.mm, 50 * ureg.mm, 30 * ureg.mm)
+        code = export(box, backend="build123d")
+        assert "Box(100, 50, 30)" in code
+
+    def test_export_with_units_m_to_mm(self):
+        ureg = pint.UnitRegistry()
+        box = Box(1 * ureg.m, 0.5 * ureg.m, 0.3 * ureg.m)
+        code = export(box, backend="build123d")
+        assert "1000" in code  # converted to mm
