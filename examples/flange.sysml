@@ -1,31 +1,24 @@
 // Flange with four bolt through-holes.
 //
-// Subtractive pattern:
-//   plate       — the base shape (child 1 of "flange")
-//   hole1..hole4 — cylinders to remove (children 2..N of "flange")
-// The bridge maps operator="difference" → Difference(plate, [hole1..hole4]).
+// Demonstrates multiple negatives in a single difference operation.
+// The positive is the base plate; each hole is a negative.
 
 package Flange {
 
     part flange {
         attribute operator = "difference";
-        attribute length  = 120.0 [mm];
-        attribute width   = 80.0 [mm];
-        attribute height  = 20.0 [mm];
 
-        // --- Child 1: the positive ------------------------------------------
+        // --- Positive: base plate -------------------------------------------
         part plate {
+            attribute role = "positive";
             attribute length = 120.0 [mm];
             attribute width  = 80.0 [mm];
             attribute height = 20.0 [mm];
         }
 
-        // --- Children 2..N: negatives (through-holes) -----------------------
-        // Each cylinder is positioned on the plate face.
-        // The bridge treats all child parts of a "difference" as negatives
-        // (except the first, which is the positive).
-
+        // --- Negatives: four bolt through-holes -----------------------------
         part hole1 {
+            attribute role = "negative";
             attribute height = 20.0 [mm];
             attribute radius = 3.0 [mm];
             attribute x = 15.0 [mm];
@@ -33,6 +26,7 @@ package Flange {
         }
 
         part hole2 {
+            attribute role = "negative";
             attribute height = 20.0 [mm];
             attribute radius = 3.0 [mm];
             attribute x = 105.0 [mm];
@@ -40,6 +34,7 @@ package Flange {
         }
 
         part hole3 {
+            attribute role = "negative";
             attribute height = 20.0 [mm];
             attribute radius = 3.0 [mm];
             attribute x = 15.0 [mm];
@@ -47,6 +42,7 @@ package Flange {
         }
 
         part hole4 {
+            attribute role = "negative";
             attribute height = 20.0 [mm];
             attribute radius = 3.0 [mm];
             attribute x = 105.0 [mm];

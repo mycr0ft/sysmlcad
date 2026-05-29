@@ -209,7 +209,7 @@ class PngBackend(ShapeBackend):
         * ``colorscheme`` -- OpenSCAD color scheme name
           (e.g. ``"Nature"``, ``"Sunset"``, ``"Metallic"``)
         """
-        extra = []
+        extra = ["--viewall", "--autocenter"]
 
         w = options.get("width", 800)
         h = options.get("height", 600)
@@ -222,6 +222,9 @@ class PngBackend(ShapeBackend):
         camera = options.get("camera")
         if camera:
             extra.append(f"--camera={','.join(str(v) for v in camera)}")
+        else:
+            # Default 3/4-perspective from front-right-above
+            extra.append("--camera=100,-150,80,0,0,0")
 
         return _openscad_render(
             shape,
@@ -261,10 +264,13 @@ class SvgBackend(ShapeBackend):
         * ``camera`` -- 6-tuple ``(eye_x, eye_y, eye_z, center_x,
           center_y, center_z)``
         """
-        extra = []
+        extra = ["--viewall", "--autocenter"]
         camera = options.get("camera")
         if camera:
-            extra.extend(["--camera", ",".join(str(v) for v in camera)])
+            extra.append(f"--camera={','.join(str(v) for v in camera)}")
+        else:
+            # Default 3/4-perspective from front-right-above
+            extra.append("--camera=100,-150,80,0,0,0")
 
         return _openscad_render(
             shape,

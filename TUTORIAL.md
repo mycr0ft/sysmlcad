@@ -452,7 +452,21 @@ The bridge convention maps SysML attributes to CAD parameters:
 | `height`, `radius1`, `radius2` | `Cone` |
 | `majorRadius`, `minorRadius` | `Torus` |
 | `operator` + child parts | CSG (union/difference/intersection) |
+| `role` (`"positive"`/`"negative"`) | CSG operand role (difference only) |
 | `x`, `y`, `z` | `Translate` |
+
+For ``difference``, child parts can declare an explicit ``role`` attribute:
+
+```sysml
+part bracket {
+    attribute operator = "difference";
+    part base { attribute role = "positive"; ... }
+    part hole { attribute role = "negative"; ... }
+}
+```
+
+If no roles are set, the order-based fallback applies: the first child is the
+positive and remaining children are negatives.
 
 ---
 

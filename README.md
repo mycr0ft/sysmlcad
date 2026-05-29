@@ -14,6 +14,40 @@ part = box - hole
 print(export(part, backend="openscad"))
 ```
 
+### Flange — SysML v2 → PNG
+
+Design a 120×80×20 plate with four bolt holes in SysML v2 and render to PNG
+in one step:
+
+```
+// examples/flange.sysml
+package Flange {
+    part flange {
+        attribute operator = "difference";
+        part plate {
+            attribute role = "positive";
+            attribute length = 120.0 [mm];
+            attribute width  = 80.0 [mm];
+            attribute height = 20.0 [mm];
+        }
+        part hole1 { attribute role = "negative";
+            attribute height = 20.0 [mm]; attribute radius = 3.0 [mm];
+            attribute x = 15.0 [mm]; attribute y = 15.0 [mm]; }
+        part hole2 { attribute role = "negative";
+            attribute height = 20.0 [mm]; attribute radius = 3.0 [mm];
+            attribute x = 105.0 [mm]; attribute y = 15.0 [mm]; }
+        part hole3 { attribute role = "negative";
+            attribute height = 20.0 [mm]; attribute radius = 3.0 [mm];
+            attribute x = 15.0 [mm]; attribute y = 65.0 [mm]; }
+        part hole4 { attribute role = "negative";
+            attribute height = 20.0 [mm]; attribute radius = 3.0 [mm];
+            attribute x = 105.0 [mm]; attribute y = 65.0 [mm]; }
+    }
+}
+```
+
+![Flange rendered with the PNG backend](examples/flange.png)
+
 ## Quick links
 
 - **[TUTORIAL.md](TUTORIAL.md)** — step-by-step guide with examples

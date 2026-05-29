@@ -37,6 +37,7 @@ from sysmlcad.ir import (
     Difference,
     Intersection,
     Module,
+    Scale,
     Shape,
     Sphere,
     Torus,
@@ -141,29 +142,69 @@ def part_to_shape(part: sysmlpy.usage.Usage) -> Shape | None:
 
     Any resulting shape is wrapped in ``Translate`` if the part also has
     ``x`` / ``y`` / ``z`` attributes.
+
+    CSG operands can declare an explicit ``role`` attribute:
+
+    * ``role = "positive"`` — the shape being kept (required for difference)
+    * ``role = "negative"`` — the shape being removed (difference only)
+
+    If no roles are set, the first child is treated as positive and
+    remaining children as negatives (order-based fallback).
     """
     attrs = _collect_attrs(part)
 
     # --- CSG operation (operator attribute on nested parts) ----------------
     operator = attrs.get("operator")
     if operator is not None and _child_parts(part):
-        operands = [
-            p for p in (_part_to_shape_recursive(c) for c in _child_parts(part))
-            if p is not None
-        ]
-        if not operands:
-            return None
         op = operator.lower()
-        if len(operands) < 2:
-            return operands[0] if operands else None
+
+        # Collect child shapes, noting their role if declared
+        positives: list[Shape] = []
+        negatives: list[Shape] = []
+        unmarked: list[Shape] = []
+        for c in _child_parts(part):
+            c_attrs = _collect_attrs(c)
+            role = c_attrs.get("role", "")
+            shape = _part_to_shape_recursive(c)
+            if shape is None:
+                continue
+            if role == "positive":
+                positives.append(shape)
+            elif role == "negative":
+                # Oversize + nudge down to prevent CSG coplanar-face artifacts
+                negatives.append(Translate(Scale(shape, 1.001), z=-0.01))
+            else:
+                unmarked.append(shape)
+
+        # Build operands based on roles (fall back to position if unset)
         if op == "difference":
-            shape = Difference(operands[0], operands[1:])
+            if positives or negatives:
+                # Explicit roles — union all positives, subtract all negatives
+                if not positives:
+                    return None
+                pos = Union(positives) if len(positives) > 1 else positives[0]
+                shape = Difference(pos, negatives) if negatives else pos
+            else:
+                # Order-based fallback: first = positive, rest = negatives
+                if len(unmarked) < 2:
+                    return unmarked[0] if unmarked else None
+                shape = Difference(
+                    unmarked[0],
+                    [Translate(Scale(s, 1.001), z=-0.01) for s in unmarked[1:]],
+                )
         elif op == "union":
+            operands = positives + negatives + unmarked
+            if len(operands) < 2:
+                return operands[0] if operands else None
             shape = Union(operands)
         elif op == "intersection":
+            operands = positives + negatives + unmarked
+            if len(operands) < 2:
+                return operands[0] if operands else None
             shape = Intersection(operands)
         else:
             return None
+
         shape.params["_sysml_name"] = part.name
         shape = _apply_translate(shape, attrs)
         return shape

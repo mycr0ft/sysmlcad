@@ -422,8 +422,18 @@ class TestOpenSCADBackend:
         bracket = Box(100, 50, 30)
         assembly.place(bracket)
         code = export(assembly, backend="openscad")
+        # Single-part assembly renders without union wrapper
+        assert "union()" not in code
+        assert "cube([100, 50, 30])" in code
+
+    def test_export_assembly_multi(self):
+        assembly = Assembly(name="multi")
+        assembly.place(Box(100, 50, 30))
+        assembly.place(Box(20, 20, 20))
+        code = export(assembly, backend="openscad")
         assert "union()" in code
         assert "cube([100, 50, 30])" in code
+        assert "cube([20, 20, 20])" in code
 
     def test_export_wedge(self):
         wedge = Wedge(30, 20, 10)
@@ -464,13 +474,13 @@ class TestOpenSCADBackend:
         sphere = Sphere(5)
         s = Scale(sphere, factor=2)
         code = export(s, backend="openscad")
-        assert "scale((2, 2, 2))" in code
+        assert "scale([2, 2, 2])" in code
 
     def test_export_mirror(self):
         box = Box(10, 10, 10)
         m = Mirror(box, normal=(0, 1, 0))
         code = export(m, backend="openscad")
-        assert "mirror((0, 1, 0))" in code
+        assert "mirror([0, 1, 0])" in code
 
 
 # ===================================================================
@@ -790,11 +800,13 @@ package Test {
     part bracket {
         attribute operator = "difference";
         part base {
+            attribute role = "positive";
             attribute length = 100.0;
             attribute width = 50.0;
             attribute height = 30.0;
         }
         part hole {
+            attribute role = "negative";
             attribute height = 30.0;
             attribute radius = 5.0;
         }

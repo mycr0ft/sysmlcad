@@ -449,14 +449,16 @@ class OpenSCADRenderer:
         self.dedent()
 
     def _scale(self, shape: Scale):
-        self.write(f"scale({shape.params['factor']})")
+        f = shape.params["factor"]
+        self.write(f"scale([{f[0]}, {f[1]}, {f[2]}])")
         self.indent()
         for child in shape.children:
             self._render_shape(child)
         self.dedent()
 
     def _mirror(self, shape: Mirror):
-        self.write(f"mirror({shape.params['normal']})")
+        n = shape.params["normal"]
+        self.write(f"mirror([{n[0]}, {n[1]}, {n[2]}])")
         self.indent()
         for child in shape.children:
             self._render_shape(child)
@@ -467,28 +469,31 @@ class OpenSCADRenderer:
     def _union(self, shape: Union):
         if not shape.children:
             return
-        self.write("union()")
+        self.write("union() {")
         self.indent()
         for child in shape.children:
             self._render_shape(child)
         self.dedent()
+        self.write("}")
 
     def _difference(self, shape: Difference):
-        self.write("difference()")
+        self.write("difference() {")
         self.indent()
         self._render_shape(shape.positive)
         for neg in shape.negatives:
             self._render_shape(neg)
         self.dedent()
+        self.write("}")
 
     def _intersection(self, shape: Intersection):
         if not shape.children:
             return
-        self.write("intersection()")
+        self.write("intersection() {")
         self.indent()
         for child in shape.children:
             self._render_shape(child)
         self.dedent()
+        self.write("}")
 
     # ---- modules ----
 
@@ -539,43 +544,51 @@ class OpenSCADRenderer:
     def _hull(self, shape: Hull):
         if not shape.children:
             return
-        self.write("hull()")
+        self.write("hull() {")
         self.indent()
         for child in shape.children:
             self._render_shape(child)
         self.dedent()
+        self.write("}")
 
     def _minkowski(self, shape: Minkowski):
         if not shape.children:
             return
-        self.write("minkowski()")
+        self.write("minkowski() {")
         self.indent()
         for child in shape.children:
             self._render_shape(child)
         self.dedent()
+        self.write("}")
 
     def _offset(self, shape: Offset):
         c = self._context
         r = self._s(shape.params["r"], c)
         chamfer = shape.params["chamfer"]
         if chamfer:
-            self.write(f"offset(r={r}, chamfer=true)")
+            self.write(f"offset(r={r}, chamfer=true) {{")
         else:
-            self.write(f"offset(r={r})")
+            self.write(f"offset(r={r}) {{")
         self.indent()
         for child in shape.children:
             self._render_shape(child)
         self.dedent()
+        self.write("}")
 
     # ---- assembly ----
 
     def _assembly(self, shape: Assembly):
-        if shape.children:
-            self.write("union()")
+        if not shape.children:
+            return
+        if len(shape.children) == 1:
+            self._render_shape(shape.children[0])
+        else:
+            self.write("union() {")
             self.indent()
             for child in shape.children:
                 self._render_shape(child)
             self.dedent()
+            self.write("}")
 
 
 # ---------------------------------------------------------------------------
