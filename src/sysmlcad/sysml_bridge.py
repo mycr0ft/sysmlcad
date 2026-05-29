@@ -87,11 +87,18 @@ def _collect_attrs(
             try:
                 val = child.get_value()
                 if val is not None:
-                    # Try numeric conversion; keep string if it fails
-                    try:
-                        result[child.name] = float(val)
-                    except (ValueError, TypeError):
-                        result[child.name] = val
+                    # pint Quantity: convert to mm and extract magnitude
+                    if hasattr(val, "units") and hasattr(val, "to"):
+                        try:
+                            result[child.name] = float(val.to("mm").magnitude)
+                        except Exception:
+                            result[child.name] = float(val.magnitude)
+                    else:
+                        # Try numeric conversion; keep string if it fails
+                        try:
+                            result[child.name] = float(val)
+                        except (ValueError, TypeError):
+                            result[child.name] = val
             except Exception:
                 pass
     return result
