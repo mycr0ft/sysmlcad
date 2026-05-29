@@ -723,3 +723,384 @@ class TestBuild123dBackend:
         box = Box(1 * ureg.m, 0.5 * ureg.m, 0.3 * ureg.m)
         code = export(box, backend="build123d")
         assert "1000" in code  # converted to mm
+
+
+# ===================================================================
+# SysML bridge tests
+# ===================================================================
+
+class TestSysmlBridge:
+    """Test the convention-based SysMLv2 → Shape IR bridge."""
+
+    BOX_SYSML = """\
+package Test {
+    part myBox {
+        attribute length = 100.0;
+        attribute width = 50.0;
+        attribute height = 30.0;
+    }
+}"""
+
+    CYL_SYSML = """\
+package Test {
+    part myCyl {
+        attribute height = 40.0;
+        attribute radius = 5.0;
+    }
+}"""
+
+    SPHERE_SYSML = """\
+package Test {
+    part mySphere {
+        attribute radius = 25.0;
+    }
+}"""
+
+    CONE_SYSML = """\
+package Test {
+    part myCone {
+        attribute height = 20.0;
+        attribute radius1 = 10.0;
+        attribute radius2 = 3.0;
+    }
+}"""
+
+    TORUS_SYSML = """\
+package Test {
+    part myTorus {
+        attribute majorRadius = 50.0;
+        attribute minorRadius = 10.0;
+    }
+}"""
+
+    TRANSLATE_SYSML = """\
+package Test {
+    part myBox {
+        attribute length = 10.0;
+        attribute width = 10.0;
+        attribute height = 10.0;
+        attribute x = 5.0;
+        attribute y = 10.0;
+        attribute z = 15.0;
+    }
+}"""
+
+    DIFFERENCE_SYSML = """\
+package Test {
+    part bracket {
+        attribute operator = "difference";
+        part base {
+            attribute length = 100.0;
+            attribute width = 50.0;
+            attribute height = 30.0;
+        }
+        part hole {
+            attribute height = 30.0;
+            attribute radius = 5.0;
+        }
+    }
+}"""
+
+    UNION_SYSML = """\
+package Test {
+    part joined {
+        attribute operator = "union";
+        part a {
+            attribute length = 10.0;
+            attribute width = 10.0;
+            attribute height = 10.0;
+        }
+        part b {
+            attribute radius = 5.0;
+        }
+        part c {
+            attribute length = 20.0;
+            attribute width = 5.0;
+            attribute height = 5.0;
+        }
+    }
+}"""
+
+    INTERSECTION_SYSML = """\
+package Test {
+    part overlap {
+        attribute operator = "intersection";
+        part a {
+            attribute length = 10.0;
+            attribute width = 10.0;
+            attribute height = 10.0;
+        }
+        part b {
+            attribute radius = 8.0;
+        }
+    }
+}"""
+
+    ASSEMBLY_SYSML = """\
+package Test {
+    part base {
+        attribute length = 100.0;
+        attribute width = 80.0;
+        attribute height = 10.0;
+    }
+    part block {
+        attribute length = 40.0;
+        attribute width = 30.0;
+        attribute height = 50.0;
+        attribute x = 30.0;
+        attribute y = 25.0;
+    }
+}"""
+
+    # -- primitives ----------------------------------------------------------
+
+    def test_box(self):
+        from sysmlcad.sysml_bridge import sysml_to_cad
+        code = sysml_to_cad(self.BOX_SYSML, backend="openscad")
+        assert "cube([100, 50, 30])" in code
+
+    def test_cylinder(self):
+        from sysmlcad.sysml_bridge import sysml_to_cad
+        code = sysml_to_cad(self.CYL_SYSML, backend="openscad")
+        assert "cylinder(h=40, r=5)" in code
+
+    def test_sphere(self):
+        from sysmlcad.sysml_bridge import sysml_to_cad
+        code = sysml_to_cad(self.SPHERE_SYSML, backend="openscad")
+        assert "sphere(r=25)" in code
+
+    def test_cone(self):
+        from sysmlcad.sysml_bridge import sysml_to_cad
+        code = sysml_to_cad(self.CONE_SYSML, backend="openscad")
+        assert "cylinder(h=20, r1=10, r2=3)" in code
+
+    def test_torus(self):
+        from sysmlcad.sysml_bridge import sysml_to_cad
+        code = sysml_to_cad(self.TORUS_SYSML, backend="openscad")
+        # OpenSCAD renders torus via rotate_extrude
+        assert "rotate_extrude" in code or "translate" in code
+
+    # -- transforms ----------------------------------------------------------
+
+    def test_translate(self):
+        from sysmlcad.sysml_bridge import sysml_to_cad
+        code = sysml_to_cad(self.TRANSLATE_SYSML, backend="openscad")
+        assert "translate([5, 10, 15])" in code
+        assert "cube([10, 10, 10])" in code
+
+    # -- CSG ----------------------------------------------------------------
+
+    def test_difference(self):
+        from sysmlcad.sysml_bridge import sysml_to_cad
+        code = sysml_to_cad(self.DIFFERENCE_SYSML, backend="openscad")
+        assert "difference()" in code
+        assert "cube([100, 50, 30])" in code
+        assert "cylinder(h=30, r=5)" in code
+
+    def test_union(self):
+        from sysmlcad.sysml_bridge import sysml_to_cad
+        code = sysml_to_cad(self.UNION_SYSML, backend="openscad")
+        assert "union()" in code
+
+    def test_intersection(self):
+        from sysmlcad.sysml_bridge import sysml_to_cad
+        code = sysml_to_cad(self.INTERSECTION_SYSML, backend="openscad")
+        assert "intersection()" in code
+
+    # -- assembly -----------------------------------------------------------
+
+    def test_assembly(self):
+        from sysmlcad.sysml_bridge import sysml_to_cad
+        code = sysml_to_cad(self.ASSEMBLY_SYSML, backend="openscad")
+        assert "cube([100, 80, 10])" in code
+        assert "cube([40, 30, 50])" in code
+        assert "translate([30, 25, 0])" in code
+
+    def test_all_backends(self):
+        """Every .sysml example should produce valid output in both backends."""
+        from sysmlcad.sysml_bridge import sysml_to_cad
+        sources = [
+            self.BOX_SYSML,
+            self.CYL_SYSML,
+            self.SPHERE_SYSML,
+            self.CONE_SYSML,
+            self.TORUS_SYSML,
+            self.TRANSLATE_SYSML,
+            self.DIFFERENCE_SYSML,
+            self.UNION_SYSML,
+            self.INTERSECTION_SYSML,
+        ]
+        for src in sources:
+            openscad = sysml_to_cad(src, backend="openscad")
+            assert openscad != ""
+            build123d = sysml_to_cad(src, backend="build123d")
+            assert build123d != ""
+
+    # -- model inspection with part_to_shape / model_to_shapes --------------
+
+    def test_part_to_shape_box(self):
+        import sysmlpy
+        from sysmlcad.sysml_bridge import part_to_shape
+        model = sysmlpy.loads(self.BOX_SYSML)
+        shape = part_to_shape(model.packages[0].parts[0])
+        assert shape is not None
+        assert shape.type == "Box"
+
+    def test_part_to_shape_cylinder(self):
+        import sysmlpy
+        from sysmlcad.sysml_bridge import part_to_shape
+        model = sysmlpy.loads(self.CYL_SYSML)
+        shape = part_to_shape(model.packages[0].parts[0])
+        assert shape is not None
+        assert shape.type == "Cylinder"
+
+    def test_part_to_shape_translate(self):
+        import sysmlpy
+        from sysmlcad.sysml_bridge import part_to_shape
+        model = sysmlpy.loads(self.TRANSLATE_SYSML)
+        shape = part_to_shape(model.packages[0].parts[0])
+        assert shape is not None
+        assert shape.type == "Translate"
+
+    def test_part_to_shape_difference(self):
+        import sysmlpy
+        from sysmlcad.sysml_bridge import part_to_shape
+        model = sysmlpy.loads(self.DIFFERENCE_SYSML)
+        shape = part_to_shape(model.packages[0].parts[0])
+        assert shape is not None
+        assert shape.type == "Difference"
+
+    def test_model_to_shapes(self):
+        import sysmlpy
+        from sysmlcad.sysml_bridge import model_to_shapes
+        model = sysmlpy.loads(self.ASSEMBLY_SYSML)
+        shapes = model_to_shapes(model)
+        assert len(shapes) == 2  # base and block (both top-level parts)
+
+    def test_sysml_to_cad_empty(self):
+        """A model with no convertible parts returns empty string."""
+        from sysmlcad.sysml_bridge import sysml_to_cad
+        source = "package Empty { part def AbstractPart; }"
+        code = sysml_to_cad(source, backend="openscad")
+        assert code == ""
+
+    def test_build123d_output(self):
+        """Verify build123d code is generated without errors."""
+        from sysmlcad.sysml_bridge import sysml_to_cad
+        code = sysml_to_cad(self.BOX_SYSML, backend="build123d")
+        assert "Box(100, 50, 30)" in code
+
+
+# ===================================================================
+# STL and STEP backend tests
+# ===================================================================
+
+class TestStlBackend:
+    def test_registered(self):
+        names = list_backends()
+        assert "stl" in names
+
+    def test_mime_type(self):
+        backend = get_backend("stl")()
+        assert backend.mime_type() == "model/stl"
+
+    def test_file_extension(self):
+        backend = get_backend("stl")()
+        assert backend.file_extension() == ".stl"
+
+    def test_is_available(self):
+        # openscad CLI not installed in test env
+        backend = get_backend("stl")()
+        assert isinstance(backend.is_available(), bool)
+
+    def test_render_returns_scad(self):
+        """Text render returns OpenSCAD source."""
+        from sysmlcad import Box, export
+        box = Box(100, 50, 30)
+        code = export(box, backend="stl")
+        assert isinstance(code, str)
+        assert "cube" in code
+
+    def test_render_with_csg(self):
+        from sysmlcad import Box, Cylinder, export
+        part = Box(100, 50, 30) - Cylinder(30, 5)
+        code = export(part, backend="stl")
+        assert "difference" in code or "cube" in code
+
+    def test_render_binary_raises_when_unavailable(self):
+        from sysmlcad import Box, export
+        box = Box(100, 50, 30)
+        backend = get_backend("stl")()
+        if not backend.is_available():
+            import pytest
+            with pytest.raises(RuntimeError, match="openscad CLI not found"):
+                export(box, backend="stl", binary=True)
+
+    def test_export_to_file_text(self):
+        """Writing .scad to file works when compilation not available."""
+        import tempfile, pathlib
+        from sysmlcad import Box, export
+        box = Box(100, 50, 30)
+        with tempfile.NamedTemporaryFile(suffix=".scad", delete=False) as f:
+            path = f.name
+        try:
+            export(box, backend="stl", filename=path)
+            content = pathlib.Path(path).read_text()
+            assert "cube" in content
+        finally:
+            pathlib.Path(path).unlink(missing_ok=True)
+
+
+class TestStepBackend:
+    def test_registered(self):
+        names = list_backends()
+        assert "step" in names
+
+    def test_mime_type(self):
+        backend = get_backend("step")()
+        assert backend.mime_type() == "model/step"
+
+    def test_file_extension(self):
+        backend = get_backend("step")()
+        assert backend.file_extension() == ".step"
+
+    def test_is_available(self):
+        backend = get_backend("step")()
+        assert isinstance(backend.is_available(), bool)
+
+    def test_render_returns_python(self):
+        """Text render returns build123d Python source."""
+        from sysmlcad import Box, export
+        box = Box(100, 50, 30)
+        code = export(box, backend="step")
+        assert isinstance(code, str)
+        assert "Box" in code
+
+    def test_render_with_csg(self):
+        from sysmlcad import Box, Cylinder, export
+        part = Box(100, 50, 30) - Cylinder(30, 5)
+        code = export(part, backend="step")
+        assert "Box" in code
+
+    def test_render_binary_raises_when_unavailable(self):
+        from sysmlcad import Box, export
+        box = Box(100, 50, 30)
+        backend = get_backend("step")()
+        if not backend.is_available():
+            import pytest
+            with pytest.raises(RuntimeError, match="build123d not installed"):
+                export(box, backend="step", binary=True)
+
+    def test_export_to_file_text(self):
+        """Writing .py to file works when compilation not available."""
+        import tempfile, pathlib
+        from sysmlcad import Box, export
+        box = Box(100, 50, 30)
+        with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as f:
+            path = f.name
+        try:
+            export(box, backend="step", filename=path)
+            content = pathlib.Path(path).read_text()
+            assert "Box" in content
+        finally:
+            pathlib.Path(path).unlink(missing_ok=True)

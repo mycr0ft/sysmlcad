@@ -55,7 +55,17 @@ class ShapeBackend(ABC):
 
     @abstractmethod
     def render(self, shape: Shape, **options) -> str:
-        """Render a Shape tree to a string."""
+        """Render a Shape tree to a string (text output)."""
+
+    def render_binary(self, shape: Shape, **options) -> bytes:
+        """Render a Shape tree to bytes (binary output, e.g. STL, STEP).
+
+        Subclasses that support binary output override this.
+        The default raises ``NotImplementedError``.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not support binary output"
+        )
 
     @abstractmethod
     def mime_type(self) -> str:

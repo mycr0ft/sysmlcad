@@ -58,9 +58,11 @@ from sysmlcad.expression import (
 
 from sysmlcad import openscad  # noqa: F401 -- import to register backend
 from sysmlcad import build123d  # noqa: F401 -- import to register backend
+from sysmlcad import stl  # noqa: F401 -- import to register backend
+from sysmlcad import step  # noqa: F401 -- import to register backend
 
 
-def export(shape: Shape, backend: str = "openscad", **options) -> str:
+def export(shape: Shape, backend: str = "openscad", **options) -> str | bytes:
     """Render a Shape tree using the named backend.
 
     Parameters
@@ -68,24 +70,35 @@ def export(shape: Shape, backend: str = "openscad", **options) -> str:
     shape : Shape
         Root of the shape tree to render.
     backend : str
-        Backend name ('openscad', 'cadquery', 'build123d', 'step', 'stl').
+        Backend name (``"openscad"``, ``"build123d"``, ``"stl"``,
+        ``"step"``, …).
     **options :
-        Passed to the backend's ``render()`` method.
+        Passed to the backend's ``render()`` method.  If ``binary=True``,
+        calls ``render_binary()`` instead.
 
     Returns
     -------
-    str
-        Rendered output (OpenSCAD source, CadQuery source, etc.).
+    str or bytes
+        Rendered output.  Text backends return ``str``; binary backends
+        (STL, STEP) return ``bytes`` when ``binary=True``.
 
     If ``filename`` is provided in options, also writes to that file.
     """
     backend_cls = get_backend(backend)
     inst = backend_cls()
-    result = inst.render(shape, **options)
+    binary = options.pop("binary", False)
+    if binary:
+        result = inst.render_binary(shape, **options)
+    else:
+        result = inst.render(shape, **options)
     filename = options.get("filename")
     if filename:
         import pathlib
-        pathlib.Path(filename).write_text(result)
+        p = pathlib.Path(filename)
+        if isinstance(result, bytes):
+            p.write_bytes(result)
+        else:
+            p.write_text(result)
     return result
 
 
