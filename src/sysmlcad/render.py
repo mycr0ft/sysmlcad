@@ -3,6 +3,9 @@
 Produces 2D images of 3D shapes by first rendering to OpenSCAD source
 and then compiling with ``openscad``.
 
+On headless systems (no X display), the backend automatically starts a
+virtual framebuffer (Xvfb) if available.
+
 Prerequisites
 -------------
 - The ``openscad`` binary must be installed (``is_available()`` checks this).
@@ -30,14 +33,87 @@ Usage
 
 from __future__ import annotations
 
+import atexit
+import os
 import shutil
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 from typing import Any
 
 from sysmlcad.backend import ShapeBackend, register_backend
 from sysmlcad.ir import Shape
+
+
+# ---------------------------------------------------------------------------
+# Xvfb helper — start a virtual framebuffer on headless systems
+# ---------------------------------------------------------------------------
+
+_XVFB_PROCESS: subprocess.Popen | None = None
+
+
+_XVFB_CANDIDATES = [
+    "Xvfb",
+    "/usr/bin/Xvfb",
+    "/usr/local/bin/Xvfb",
+    "/tmp/xvfb_extract/usr/bin/Xvfb",
+]
+
+
+def _find_xvfb() -> str | None:
+    """Locate the Xvfb binary, searching common locations."""
+    for candidate in _XVFB_CANDIDATES:
+        path = shutil.which(candidate) or candidate
+        if os.path.isfile(path) and os.access(path, os.X_OK):
+            return path
+    return None
+
+
+def _ensure_display() -> str | None:
+    """If no DISPLAY is set and Xvfb is available, start one and return
+    the display string.  Returns ``None`` if a display is already
+    available or Xvfb cannot be started."""
+    display = os.environ.get("DISPLAY", "")
+    if display:
+        return None  # display already available
+
+    xvfb_path = _find_xvfb()
+    if xvfb_path is None:
+        return None
+
+    global _XVFB_PROCESS
+    try:
+        proc = subprocess.Popen(
+            [xvfb_path, ":99", "-screen", "0", "1280x960x24"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        _XVFB_PROCESS = proc
+        os.environ["DISPLAY"] = ":99"
+        import time
+        time.sleep(1)
+        return ":99"
+    except Exception:
+        return None
+
+
+def _cleanup_xvfb() -> None:
+    global _XVFB_PROCESS
+    if _XVFB_PROCESS is not None:
+        try:
+            _XVFB_PROCESS.terminate()
+            _XVFB_PROCESS.wait(timeout=5)
+        except Exception:
+            try:
+                _XVFB_PROCESS.kill()
+            except Exception:
+                pass
+        _XVFB_PROCESS = None
+
+
+import atexit
+atexit.register(_cleanup_xvfb)
 
 
 def _common_render(shape: Shape, **options) -> str:
@@ -80,6 +156,9 @@ def _openscad_render(
             f"  openscad -o output{output_ext} input.scad"
         )
 
+    # Ensure a display is available (start Xvfb if needed)
+    _ensure_display()
+
     scad_source = _common_render(shape, **options)
 
     tmp_dir = tempfile.mkdtemp(prefix="sysmlcad_render_")
@@ -89,9 +168,10 @@ def _openscad_render(
 
         out_path = Path(tmp_dir) / f"output{output_ext}"
 
-        cmd = ["openscad", "-o", str(out_path), str(scad_path)]
+        cmd = ["openscad"]
         if extra_args:
-            cmd = extra_args + cmd
+            cmd.extend(extra_args)
+        cmd.extend(["-o", str(out_path), str(scad_path)])
 
         subprocess.run(
             cmd,
@@ -133,15 +213,15 @@ class PngBackend(ShapeBackend):
 
         w = options.get("width", 800)
         h = options.get("height", 600)
-        extra.extend(["--imgsize", f"{w}x{h}"])
+        extra.append(f"--imgsize={w},{h}")
 
         cs = options.get("colorscheme")
         if cs:
-            extra.extend(["--colorscheme", cs])
+            extra.append(f"--colorscheme={cs}")
 
         camera = options.get("camera")
         if camera:
-            extra.extend(["--camera", ",".join(str(v) for v in camera)])
+            extra.append(f"--camera={','.join(str(v) for v in camera)}")
 
         return _openscad_render(
             shape,
