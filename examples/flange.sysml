@@ -1,5 +1,9 @@
-// Flange with four bolt holes — demonstrates nested CSG differences with
-// explicit SI unit annotations.
+// Flange with four bolt through-holes.
+//
+// Subtractive pattern:
+//   plate       — the base shape (child 1 of "flange")
+//   hole1..hole4 — cylinders to remove (children 2..N of "flange")
+// The bridge maps operator="difference" → Difference(plate, [hole1..hole4]).
 
 package Flange {
 
@@ -9,55 +13,44 @@ package Flange {
         attribute width   = 80.0 [mm];
         attribute height  = 20.0 [mm];
 
-        // --- Base plate ------------------------------------------------
+        // --- Child 1: the positive ------------------------------------------
         part plate {
             attribute length = 120.0 [mm];
             attribute width  = 80.0 [mm];
             attribute height = 20.0 [mm];
         }
 
-        // --- Bolt hole 1 (bottom-left) ---------------------------------
+        // --- Children 2..N: negatives (through-holes) -----------------------
+        // Each cylinder is positioned on the plate face.
+        // The bridge treats all child parts of a "difference" as negatives
+        // (except the first, which is the positive).
+
         part hole1 {
-            attribute operator = "difference";
-            part bolt {
-                attribute height = 20.0 [mm];
-                attribute radius = 3.0 [mm];
-                attribute x = 15.0 [mm];
-                attribute y = 15.0 [mm];
-            }
+            attribute height = 20.0 [mm];
+            attribute radius = 3.0 [mm];
+            attribute x = 15.0 [mm];
+            attribute y = 15.0 [mm];
         }
 
-        // --- Bolt hole 2 (bottom-right) --------------------------------
         part hole2 {
-            attribute operator = "difference";
-            part bolt {
-                attribute height = 20.0 [mm];
-                attribute radius = 3.0 [mm];
-                attribute x = 105.0 [mm];
-                attribute y = 15.0 [mm];
-            }
+            attribute height = 20.0 [mm];
+            attribute radius = 3.0 [mm];
+            attribute x = 105.0 [mm];
+            attribute y = 15.0 [mm];
         }
 
-        // --- Bolt hole 3 (top-left) ------------------------------------
         part hole3 {
-            attribute operator = "difference";
-            part bolt {
-                attribute height = 20.0 [mm];
-                attribute radius = 3.0 [mm];
-                attribute x = 15.0 [mm];
-                attribute y = 65.0 [mm];
-            }
+            attribute height = 20.0 [mm];
+            attribute radius = 3.0 [mm];
+            attribute x = 15.0 [mm];
+            attribute y = 65.0 [mm];
         }
 
-        // --- Bolt hole 4 (top-right) -----------------------------------
         part hole4 {
-            attribute operator = "difference";
-            part bolt {
-                attribute height = 20.0 [mm];
-                attribute radius = 3.0 [mm];
-                attribute x = 105.0 [mm];
-                attribute y = 65.0 [mm];
-            }
+            attribute height = 20.0 [mm];
+            attribute radius = 3.0 [mm];
+            attribute x = 105.0 [mm];
+            attribute y = 65.0 [mm];
         }
     }
 
