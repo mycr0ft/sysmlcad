@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "sysmlcad"
+version = "0.1.0"
+description = "Parametric CAD shape modeling with pluggable backends (OpenSCAD, CadQuery, Build123d, STEP, STL)"
+authors = ["J. Fox <jfox@sysmlpy.dev>"]
+license = "MIT"
+readme = "README.md"
+packages = [{ include = "sysmlcad", from = "src" }]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+sysmlpy = { path = "../sysmlpy" }
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=7.0"
+pint = ">=0.24"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[project]
+name = "sysmlcad"
+version = "0.1.0"
+description = "Parametric CAD shape modeling with pluggable backends"
+requires-python = ">=3.9"
+dependencies = ["sysmlpy"]
+license = { text = "MIT" }
