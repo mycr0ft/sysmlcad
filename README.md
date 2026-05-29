@@ -25,7 +25,11 @@ print(export(part, backend="openscad"))
 
 ## Backends
 
-| Backend | `list_backends()` key | Output |
-|---------|----------------------|--------|
-| OpenSCAD | `"openscad"` | `.scad` |  
-| Build123d | `"build123d"` | `.py` |
+| Backend | Key | Output | Requires |
+|---------|-----|--------|----------|
+| OpenSCAD | `"openscad"` | `.scad` | — |
+| Build123d | `"build123d"` | `.py` | — |
+| STL | `"stl"` | `.stl` | `openscad` CLI |
+| STEP | `"step"` | `.step` | `build123d` |
+| PNG | `"png"` | `.png` | `openscad` CLI |
+| SVG | `"svg"` | `.svg` | `openscad` CLI |

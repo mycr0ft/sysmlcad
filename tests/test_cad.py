@@ -1104,3 +1104,67 @@ class TestStepBackend:
             assert "Box" in content
         finally:
             pathlib.Path(path).unlink(missing_ok=True)
+
+
+# ===================================================================
+# Image rendering (PNG / SVG) backend tests
+# ===================================================================
+
+class TestPngBackend:
+    def test_registered(self):
+        assert "png" in list_backends()
+
+    def test_mime_type(self):
+        backend = get_backend("png")()
+        assert backend.mime_type() == "image/png"
+
+    def test_file_extension(self):
+        backend = get_backend("png")()
+        assert backend.file_extension() == ".png"
+
+    def test_is_available(self):
+        backend = get_backend("png")()
+        assert isinstance(backend.is_available(), bool)
+
+    def test_render_returns_scad(self):
+        box = Box(100, 50, 30)
+        code = export(box, backend="png")
+        assert isinstance(code, str)
+        assert "cube" in code
+
+    def test_render_binary_raises_when_unavailable(self):
+        box = Box(100, 50, 30)
+        backend = get_backend("png")()
+        if not backend.is_available():
+            with pytest.raises(RuntimeError, match="openscad CLI not found"):
+                export(box, backend="png", binary=True)
+
+
+class TestSvgBackend:
+    def test_registered(self):
+        assert "svg" in list_backends()
+
+    def test_mime_type(self):
+        backend = get_backend("svg")()
+        assert backend.mime_type() == "image/svg+xml"
+
+    def test_file_extension(self):
+        backend = get_backend("svg")()
+        assert backend.file_extension() == ".svg"
+
+    def test_is_available(self):
+        backend = get_backend("svg")()
+        assert isinstance(backend.is_available(), bool)
+
+    def test_render_returns_scad(self):
+        box = Box(100, 50, 30)
+        code = export(box, backend="svg")
+        assert isinstance(code, str)
+        assert "cube" in code
+
+    def test_render_binary_raises_when_unavailable(self):
+        box = Box(100, 50, 30)
+        backend = get_backend("svg")()
+        if not backend.is_available():
+            with pytest.raises(RuntimeError, match="openscad CLI not found"):
+                export(box, backend="svg", binary=True)

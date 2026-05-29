@@ -328,27 +328,53 @@ print(export(box, backend="openscad"))  # all in mm
 
 ## 10. Picking a Backend
 
-| Backend | Output format | Best for |
-|---------|--------------|----------|
-| `"openscad"` | `.scad` | Visualization, manual tweaking, rendering |
-| `"build123d"` | `.py` | Programmatic CAD with the build123d library |
+| Backend | Output format | Requires | Best for |
+|---------|--------------|----------|----------|
+| `"openscad"` | `.scad` | — | Visualization, manual tweaking |
+| `"build123d"` | `.py` | — | Programmatic CAD with build123d |
+| `"stl"` | `.stl` | `openscad` CLI | 3D printing, mesh export |
+| `"step"` | `.step` | `build123d` | CAD interchange (ISO 10303) |
+| `"png"` | `.png` | `openscad` CLI | Rendered images |
+| `"svg"` | `.svg` | `openscad` CLI | 2D vector graphics |
 
 List available backends:
 
 ```python
 from sysmlcad import list_backends, get_backend
 
-print(list_backends())            # ["openscad", "build123d"]
+print(list_backends())
+# ['openscad', 'build123d', 'stl', 'step', 'png', 'svg']
 b = get_backend("build123d")()
 print(b.mime_type())              # "text/x-python"
 print(b.file_extension())         # ".py"
 ```
 
-To write to a file:
+Every backend's ``render()`` always works (returns generated source code).
+Binary formats (STL, STEP, PNG, SVG) additionally support ``binary=True``,
+which requires the tool listed above:
 
 ```python
 export(part, backend="openscad", filename="part.scad")
 export(part, backend="build123d", filename="part.py")
+
+# Binary formats (only if the tool is installed)
+export(part, backend="stl",  binary=True, filename="part.stl")
+export(part, backend="step", binary=True, filename="part.step")
+export(part, backend="png",  binary=True, filename="part.png",
+       width=1280, height=960)
+export(part, backend="svg",  binary=True, filename="part.svg")
+```
+
+Check availability at runtime:
+
+```python
+from sysmlcad import get_backend
+
+png = get_backend("png")()
+if png.is_available():
+    export(part, backend="png", binary=True, filename="part.png")
+else:
+    print("Install openscad to render images")
 ```
 
 ---
@@ -386,7 +412,51 @@ Drag the sliders for `L`, `W`, `H`, `R` to change the design in real time.
 
 ---
 
-## 12. Next Steps
+## 12. SysML Bridge
+
+The ``sysml_bridge`` module converts SysML v2 models to CAD shapes
+using a convention-based mapping.
+
+Load a ``.sysml`` file and export to OpenSCAD in one call:
+
+```python
+from sysmlcad.sysml_bridge import sysml_file_to_cad
+
+code = sysml_file_to_cad("examples/bracket.sysml", backend="openscad")
+print(code)
+```
+
+Example ``.sysml`` files live in ``examples/``:
+
+| File | Description |
+|------|-------------|
+| `simple_box.sysml` | A single box primitive |
+| `bracket.sysml` | Bracket with centered hole (CSG difference) |
+| `flange.sysml` | Flange plate with 4 bolt holes |
+| `assembly.sysml` | Three parts joined in an assembly |
+
+Render all examples to images:
+
+```bash
+poetry run python examples/render_all.py
+poetry run python examples/render_all.py --backend png --width 1280 --height 960
+```
+
+The bridge convention maps SysML attributes to CAD parameters:
+
+| Attributes | Shape |
+|-----------|-------|
+| `length`, `width`, `height` | `Box` |
+| `height`, `radius` | `Cylinder` |
+| `radius` (only) | `Sphere` |
+| `height`, `radius1`, `radius2` | `Cone` |
+| `majorRadius`, `minorRadius` | `Torus` |
+| `operator` + child parts | CSG (union/difference/intersection) |
+| `x`, `y`, `z` | `Translate` |
+
+---
+
+## 13. Next Steps
 
 - Browse the source at `src/sysmlcad/ir.py` for all supported shape types
 - Check `src/sysmlcad/expression.py` for the expression system
